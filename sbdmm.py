@@ -14,8 +14,8 @@ wif = "YOUR_STEEM_ACTIVE_KEY"
 bittrexmemo = "BITTREX_STEEM_DEPOSIT_MEMO"
 
 dust = 0.2     # Filtering dust orders (ratio to my order)
-margin = 0.01  # Spread between buy and sell
-target = 0.95  # Targeted SBD value
+margin = 0.03  # Spread between buy and sell
+target = 0.96  # Targeted SBD value
 batch = 100    # The amount of SBD conversion for each time
 
 BUY_ORDERBOOK = 'buy'

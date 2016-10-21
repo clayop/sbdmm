@@ -14,9 +14,11 @@ import getpass
 BUY_ORDERBOOK = 'buy'
 SELL_ORDERBOOK = 'sell'
 BOTH_ORDERBOOK = 'both'
+
 BASE_URL = 'https://bittrex.com/api/v1.1/%s/'
 MARKET_SET = {'getopenorders', 'cancel', 'sellmarket', 'selllimit', 'buymarket', 'buylimit'}
 ACCOUNT_SET = {'getbalances', 'getbalance', 'getdepositaddress', 'withdraw'}
+
 
 class Bittrex(object):
     def __init__(self, api_key, api_secret):
@@ -220,7 +222,9 @@ if __name__ == '__main__':
         stsbdbal = float(stbal["sbd_balance"].split()[0])
         if stsbdbal >= batch:
             steem.convert(batch, account=account)
-   
+            msg = "Converted %s SBD" % str(batch)
+            print(msg)
+
     def rounding(value):
         return int((value)*10**8+0.5)/10**8
 
@@ -244,11 +248,12 @@ if __name__ == '__main__':
     batch = float(market["Batch_Amount"])
     intvlong = int(market["Interval_Long"])
     intvshort = int(market["Interval_Short"])
-   
+
     bt = Bittrex(api_key, api_secret)
     steem = Steem(wif=wif)    #steem = Steem(wif=wif, node="ws://127.0.0.1:8090")
     cancel_all("both")
     cancel_steem()
+    convert()
     time.sleep(2)
     btcbal = balance("BTC")
     sbdbal = balance("SBD")
@@ -290,7 +295,7 @@ if __name__ == '__main__':
                     res = bt.sell_limit("BTC-SBD", sellquantity, sellprice)
                     if res["success"] == True:
                         print("Sell order %s SBD at %s" % (format(sellquantity, ".3f"), format(sellprice, ".8f")))
-            if int((time.time()-intvlong/2)/intvlong) > timeh:
+            if int((time.time()/intvlong)-0.5) > timeh:
                 convert()
             if int(time.time()/intvshort) > timet:
                 timet = int(time.time()/intvshort)

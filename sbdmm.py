@@ -215,7 +215,7 @@ if __name__ == '__main__':
         stbal = steem.get_balances(account)
         ststeembal = float(stbal["balance"].split()[0])
         if ststeembal >= 10:
-            steem.transfer("bittrex", ststeembal, "STEEM", memo=bittrexmemo)
+            steem.transfer("bittrex", ststeembal, "STEEM", memo=bittrexmemo, account=account)
 
     def convert():
         stbal = steem.get_balances(account)

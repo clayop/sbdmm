@@ -295,7 +295,7 @@ if __name__ == '__main__':
                     res = bt.sell_limit("BTC-SBD", sellquantity, sellprice)
                     if res["success"] == True:
                         print("Sell order %s SBD at %s" % (format(sellquantity, ".3f"), format(sellprice, ".8f")))
-            if int((time.time()/intvlong)-0.5) > timeh:
+            if int((time.time()/intvlong)+0.5) > timeh:
                 convert()
             if int(time.time()/intvshort) > timet:
                 timet = int(time.time()/intvshort)

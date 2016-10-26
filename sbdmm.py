@@ -11,6 +11,8 @@ import base64
 import yaml
 import getpass
 
+activebuy = 0
+
 BUY_ORDERBOOK = 'buy'
 SELL_ORDERBOOK = 'sell'
 BOTH_ORDERBOOK = 'both'
@@ -116,55 +118,82 @@ if __name__ == '__main__':
         return res
 
     def prices(btcbal, sbdbal, buyprice=None, sellprice=None, buyquantity=None, sellquantity=None):
-        btcsum = 0
-        sbdsum = 0
-        orderbook = bt.get_orderbook("BTC-SBD", "both")["result"]
-        polop = requests.get("https://poloniex.com/public?command=returnTicker").json()
-        polobidp = float(polop["BTC_SBD"]["highestBid"])
-        poloaskp = float(polop["BTC_SBD"]["lowestAsk"])
-        buy = orderbook["buy"]
-        sell = orderbook["sell"]
         avgp, abtcp = avg_prices()
         if avgp < target:
             avgp = target
         avgprice = avgp/abtcp
         avgpmargin = avgp+margin
         avgpricemargin = avgpmargin/abtcp
-        buylimit = avgprice
-        selllimit = avgpricemargin
-        if buylimit > poloaskp*1.005:
-            buylimit = poloaskp*1.005
-        if selllimit < polobidp/1.005:
-            selllimit = polobidp/1.005
-        for i in buy:
-            btcsum += i["Rate"]*i["Quantity"]
-            buyp = i["Rate"]
-            if btcsum >= dust*btcbal and buyp <= buylimit:
-                if buyprice != None and buyquantity != None:
-                    if buyp == buyprice:
-                        if i["Quantity"] >= (1+dust)*buyquantity:
+        if activebuy == 1:
+            buyp = avgprice
+            sellp = avgpricemargin
+        elif activebuy == 0:
+            btcsum = 0
+            sbdsum = 0
+            orderbook = bt.get_orderbook("BTC-SBD", "both")["result"]
+            poloob = requests.get("https://poloniex.com/public?command=returnOrderBook&currencyPair=BTC_SBD&depth=50").json()
+            polobidtotalsbd = 0
+            polobidtotalbtc = 0
+            poloasktotalsbd = 0
+            poloasktotalbtc = 0
+            for i in poloob["asks"]:
+                poloasktotalbtc += float(i[0])*float(i[1])
+                poloasktotalsbd += float(i[1])
+                if poloasktotalbtc > btcbal:
+                    poloaskp = poloasktotalsbd/poloasktotalbtc
+                    break
+            for i in poloob["bids"]:
+                polobidtotalbtc += float(i[0])*float(i[1])
+                polobidtotalsbd += float(i[1])
+                if polobidtotalsbd > sbdbal:
+                    polobidp = polobidtotalsbd/polobidtotalbtc
+                    break
+            buy = orderbook["buy"]
+            sell = orderbook["sell"]
+            buylimit = avgprice
+            selllimit = avgpricemargin
+            if buylimit > poloaskp*1.005:
+                buylimit = poloaskp*1.005
+            if selllimit < polobidp/1.005:
+                selllimit = polobidp/1.005
+            for i in buy:
+                btcsum += i["Rate"]*i["Quantity"]
+                buyp = i["Rate"]
+                if btcsum >= dust*btcbal and buyp <= buylimit:
+                    if buyprice != None and buyquantity != None:
+                        if buyp == buyprice:
+                            if i["Quantity"] >= (1+dust)*buyquantity:
+                                break
+                        else:
                             break
                     else:
                         break
-                else:
-                    break
-        for i in sell:
-            sbdsum += i["Quantity"]
-            sellp = i["Rate"]
-            if sbdsum >= dust*sbdbal and sellp >= selllimit:
-                if sellprice != None and sellquantity != None:
-                    if sellp == sellprice:
-                        if i["Quantity"] >= (1+dust)*sellquantity:
+            for i in sell:
+                sbdsum += i["Quantity"]
+                sellp = i["Rate"]
+                if sbdsum >= dust*sbdbal and sellp >= selllimit:
+                    if sellprice != None and sellquantity != None:
+                        if sellp == sellprice:
+                            if i["Quantity"] >= (1+dust)*sellquantity:
+                                break
+                        else:
                             break
                     else:
                         break
-                else:
-                    break
         return (buyp, sellp)
 
     def steemp(steembal, steemprice=None, steemquantity=None):
         orderbook = bt.get_orderbook("BTC-STEEM", "sell")["result"]
-        polop = float(requests.get("https://poloniex.com/public?command=returnTicker").json()["BTC_STEEM"]["highestBid"])
+        poloob = requests.get("https://poloniex.com/public?command=returnOrderBook&currencyPair=BTC_STEEM&depth=50").json()
+        polobidtotalbtc = 0
+        polobidtotalsteem = 0
+        for i in poloob["bids"]:
+            polobidp = float(i[0])
+            polobidtotalbtc += float(i[0])*float(i[1])
+            polobidtotalsteem += float(i[1])
+            if polobidtotalsteem > steembal:
+                polobidp = polobidtotalbtc/polobidtotalsteem
+                break
         steemsum = 0
         for i in orderbook:
             steemsum += i["Quantity"]
@@ -178,9 +207,8 @@ if __name__ == '__main__':
                         break
                 else:
                     break
-        if sellp < polop:
-            sellp = polop
-        sellp = round(sellp, 8)
+        if sellp < polobidp/1.005:
+            sellp = polobidp/1.005
         return sellp
 
     def cancel_all(type):
@@ -216,6 +244,8 @@ if __name__ == '__main__':
         ststeembal = float(stbal["balance"].split()[0])
         if ststeembal >= 10:
             steem.transfer("bittrex", ststeembal, "STEEM", memo=bittrexmemo, account=account)
+            msg = "Transfered %s STEEM to Bittrex" % steembal
+            print(msg)
 
     def convert():
         stbal = steem.get_balances(account)
@@ -226,7 +256,7 @@ if __name__ == '__main__':
             print(msg)
 
     def rounding(value):
-        return int((value)*10**8+0.5)/10**8
+        return float(str(value)[0:10])
 
     try:
         config_file = open("sbdmm_config.yml", "r")
@@ -250,9 +280,10 @@ if __name__ == '__main__':
     intvshort = int(market["Interval_Short"])
 
     bt = Bittrex(api_key, api_secret)
-    steem = Steem(wif=wif)    #steem = Steem(wif=wif, node="ws://127.0.0.1:8090")
+    steem = Steem(wif=wif, node="ws://127.0.0.1:8090")    #steem = Steem(wif=wif)
     cancel_all("both")
     cancel_steem()
+    convert()
     time.sleep(2)
     btcbal = balance("BTC")
     sbdbal = balance("SBD")
@@ -283,7 +314,7 @@ if __name__ == '__main__':
     while True:
         try:
             newbuyprice, newsellprice = prices(btcbal, sbdbal, buyprice, sellprice, buyquantity, sellquantity)
-            newsteemprice = steemp(steembal, steemprice)
+            newsteemprice = steemp(steembal, steemprice, steemquantity)
             if int(time.time()/intvlong) > timeh:
                 timeh = int(time.time()/intvlong)
                 transfers()

@@ -4,12 +4,17 @@
 ```
 sudo apt-get install python-dev python3-pip git
 sudo pip3 install requests
-sudo pip3 install steem-piston
+sudo pip3 install steem
 sudo pip3 install pycrypto
 git clone https://github.com/clayop/sbdmm
 screen -S sbdmm
 cd sbdmm
+
+# If you want to run a bot on Bittrex
 python3 sbdmm.py
+
+# If you want to run a bot on the internal market
+python3 sbdmm_internal.py
 ```
 
 ## Miscellaneous
